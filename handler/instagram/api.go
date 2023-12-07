@@ -32,6 +32,31 @@ func getImageDimension(url string) (int, int) {
 	return g.Dx(), g.Dy()
 }
 
+func rgraphql(PostID string) []byte {
+	req, err := http.NewRequest("GET", fmt.Sprintf(`https://www.instagram.com/graphql/query/?query_hash=b3055c01b4b222b8a47dc12b090e4e64&variables={"shortcode":"%v"}`, PostID), nil)
+	if err != nil {
+		panic(err)
+	}
+
+	req.Header.Add("Accept-Language", "en-US,en;q=0.9")
+	req.Header.Add("Connection", "close")
+	req.Header.Add("Sec-Fetch-Mode", "navigate")
+	req.Header.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:120.0) Gecko/20100101 Firefox/120.0")
+	req.Header.Add("Referer", "https://www.instagram.com/p/"+PostID+"/")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		panic(err)
+	}
+	defer resp.Body.Close()
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		panic(err)
+	}
+
+	return body
+}
+
 func InstagramIndexer(w http.ResponseWriter, r *http.Request) {
 	url := r.URL.Query().Get("url")
 	if len(url) == 0 {
@@ -106,6 +131,22 @@ func InstagramIndexer(w http.ResponseWriter, r *http.Request) {
 		}
 	})
 	c.Visit(fmt.Sprintf("https://www.instagram.com/p/%v/embed/captioned/", PostID))
+
+	if indexedMedia.Medias == nil {
+		json := rgraphql(PostID)
+		caption = gjson.GetBytes(json, "data.shortcode_media.edge_media_to_caption.edges.0.node.text").String()
+		display_resources := gjson.GetBytes(json, "data.shortcode_media.display_resources.@reverse.0")
+		is_video := gjson.GetBytes(json, "data.shortcode_media.is_video").Bool()
+		for _, results := range display_resources.Array() {
+			indexedMedia.Medias = append(indexedMedia.Medias, handler.Medias{
+				Width:  int(results.Get("config_width").Int()),
+				Height: int(results.Get("config_height").Int()),
+				Source: results.Get("src").String(),
+				Video:  is_video,
+			})
+		}
+
+	}
 
 	ixt := handler.IndexedMedia{
 		URL:     url,
