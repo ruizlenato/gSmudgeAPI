@@ -9,6 +9,7 @@ type Medias struct {
 	Width  int    `json:"width,omitempty"`
 	Height int    `json:"height,omitempty"`
 	Source string `json:"src"`
+	Video  bool   `json:"is_video"`
 }
 
 type IndexedMedia struct {
