@@ -27,5 +27,10 @@ func HandlerIndex(w http.ResponseWriter, r *http.Request) {
 			"description":  "Scrapper for instagram",
 			"query_params": map[string]string{"url": "url"},
 		},
+		"/twitter": map[string]interface{}{
+			"method":       "GET",
+			"description":  "Scrapper for twitter/x",
+			"query_params": map[string]string{"url": "url"},
+		},
 	})
 }
