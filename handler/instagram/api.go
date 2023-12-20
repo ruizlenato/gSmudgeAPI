@@ -1,16 +1,20 @@
 package instagram
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+	"gSmudgeAPI/cache"
 	"gSmudgeAPI/handler"
 	"image"
 	_ "image/jpeg"
 	_ "image/png"
-	"io/ioutil"
+	"io"
+	"log"
 	"net/http"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/gocolly/colly"
 	"github.com/tidwall/gjson"
@@ -152,6 +156,12 @@ func InstagramIndexer(w http.ResponseWriter, r *http.Request) {
 		URL:     url,
 		Medias:  indexedMedia.Medias,
 		Caption: caption}
+
+	jsonResponse, _ := json.Marshal(ixt)
+	err := cache.GetRedisClient().Set(context.Background(), r.RequestURI, jsonResponse, 24*time.Hour*60).Err()
+	if err != nil {
+		log.Println("Error setting cache:", err)
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(ixt)

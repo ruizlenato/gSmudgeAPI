@@ -1,13 +1,17 @@
 package twitter
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+	"gSmudgeAPI/cache"
 	"gSmudgeAPI/handler"
 	"io"
+	"log"
 	"net/http"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/tidwall/gjson"
@@ -135,6 +139,11 @@ func TwitterIndexer(w http.ResponseWriter, r *http.Request) {
 		Medias:  indexedMedia.Medias,
 		Caption: caption}
 
+	jsonResponse, _ := json.Marshal(ixt)
+	err := cache.GetRedisClient().Set(context.Background(), r.RequestURI, jsonResponse, 24*time.Hour*60).Err()
+	if err != nil {
+		log.Println("Error setting cache:", err)
+	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(ixt)
 
