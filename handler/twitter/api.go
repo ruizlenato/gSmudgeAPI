@@ -98,7 +98,7 @@ func TwitterIndexer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	TweetID := (regexp.MustCompile((`.*(twitter|x).com/.+status/([A-Za-z0-9]+)`))).FindStringSubmatch(url)[2]
+	TweetID := (regexp.MustCompile((`.*(?:twitter|x).com/.+status/([A-Za-z0-9]+)`))).FindStringSubmatch(url)[1]
 	s := gjson.ParseBytes(rgraphql(TweetID)).String()
 	indexedMedia := &handler.IndexedMedia{}
 	var caption string
@@ -140,7 +140,7 @@ func TwitterIndexer(w http.ResponseWriter, r *http.Request) {
 		Caption: caption}
 
 	jsonResponse, _ := json.Marshal(ixt)
-	err := cache.GetRedisClient().Set(context.Background(), r.RequestURI, jsonResponse, 24*time.Hour*60).Err()
+	err := cache.GetRedisClient().Set(context.Background(), TweetID, jsonResponse, 24*time.Hour*60).Err()
 	if err != nil {
 		log.Println("Error setting cache:", err)
 	}

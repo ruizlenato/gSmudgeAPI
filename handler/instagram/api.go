@@ -162,7 +162,8 @@ func InstagramIndexer(w http.ResponseWriter, r *http.Request) {
 		Caption: caption}
 
 	jsonResponse, _ := json.Marshal(ixt)
-	err := cache.GetRedisClient().Set(context.Background(), r.RequestURI, jsonResponse, 24*time.Hour*60).Err()
+
+	err := cache.GetRedisClient().Set(context.Background(), PostID, jsonResponse, 24*time.Hour*60).Err()
 	if err != nil {
 		log.Println("Error setting cache:", err)
 	}
