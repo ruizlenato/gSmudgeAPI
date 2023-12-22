@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"gSmudgeAPI/cache"
 	"gSmudgeAPI/handler"
-	"io"
+	"gSmudgeAPI/utils"
 	"log"
 	"net/http"
 	"regexp"
@@ -17,21 +17,25 @@ import (
 	"github.com/tidwall/gjson"
 )
 
-func rgraphql(TweetID string) []byte {
-	req, err := http.NewRequest("GET", "https://twitter.com/i/api/graphql/NmCeCgkVlsRGS1cAwqtgmw/TweetDetail", nil)
-	if err != nil {
-		panic(err)
+func TwitterIndexer(w http.ResponseWriter, r *http.Request) {
+	url := r.URL.Query().Get("url")
+	if len(url) == 0 {
+		response := "No URL specified"
+		http.Error(w, response, http.StatusMethodNotAllowed)
+		return
 	}
 
-	req.Header.Add("Authorization", "Bearer AAAAAAAAAAAAAAAAAAAAANRILgAAAAAAnNwIzUejRCOuH5E6I8xnZz4puTs%3D1Zv7ttfk8LF81IUq16cHjhLTvJu4FA33AGWWjCpTnA")
+	TweetID := (regexp.MustCompile((`.*(?:twitter|x).com/.+status/([A-Za-z0-9]+)`))).FindStringSubmatch(url)[1]
 	csrfToken := strings.ReplaceAll((uuid.New()).String(), "-", "")
-	req.Header.Add("Cookie", fmt.Sprintf("auth_token=ee4ebd1070835b90a9b8016d1e6c6130ccc89637; ct0=%v; ", csrfToken))
-	req.Header.Add("x-twitter-active-user", "yes")
-	req.Header.Add("x-twitter-auth-type", "OAuth2Session")
-	req.Header.Add("x-twitter-client-language", "en")
-	req.Header.Add("x-csrf-token", csrfToken)
-	req.Header.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:120.0) Gecko/20100101 Firefox/120.0")
-	query := req.URL.Query()
+	Headers := map[string]string{
+		"Authorization":             "Bearer AAAAAAAAAAAAAAAAAAAAANRILgAAAAAAnNwIzUejRCOuH5E6I8xnZz4puTs%3D1Zv7ttfk8LF81IUq16cHjhLTvJu4FA33AGWWjCpTnA",
+		"Cookie":                    fmt.Sprintf("auth_token=ee4ebd1070835b90a9b8016d1e6c6130ccc89637; ct0=%v; ", csrfToken),
+		"x-twitter-active-user":     "yes",
+		"x-twitter-auth-type":       "OAuth2Session",
+		"x-twitter-client-language": "en",
+		"x-csrf-token":              csrfToken,
+		"User-Agent":                "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:120.0) Gecko/20100101 Firefox/120.0",
+	}
 	variables := map[string]interface{}{
 		"focalTweetId":                           TweetID,
 		"referrer":                               "messages",
@@ -72,34 +76,15 @@ func rgraphql(TweetID string) []byte {
 	variablesJson, _ := json.Marshal(variables)
 	featuresJson, _ := json.Marshal(features)
 	fieldTogglesJson, _ := json.Marshal(fieldtoggles)
-	query.Add("variables", string(variablesJson))
-	query.Add("features", string(featuresJson))
-	query.Add("fieldToggles", string(fieldTogglesJson))
-	req.URL.RawQuery = query.Encode()
 
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		panic(err)
-	}
-	defer resp.Body.Close()
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		panic(err)
+	Query := map[string]string{
+		"variables":    string(variablesJson),
+		"features":     string(featuresJson),
+		"fieldToggles": string(fieldTogglesJson),
 	}
 
-	return body
-}
-
-func TwitterIndexer(w http.ResponseWriter, r *http.Request) {
-	url := r.URL.Query().Get("url")
-	if len(url) == 0 {
-		response := "No URL specified"
-		http.Error(w, response, http.StatusMethodNotAllowed)
-		return
-	}
-
-	TweetID := (regexp.MustCompile((`.*(?:twitter|x).com/.+status/([A-Za-z0-9]+)`))).FindStringSubmatch(url)[1]
-	s := gjson.ParseBytes(rgraphql(TweetID)).String()
+	body := utils.GetResBody("https://twitter.com/i/api/graphql/NmCeCgkVlsRGS1cAwqtgmw/TweetDetail", Query, Headers)
+	s := gjson.ParseBytes(body).String()
 	indexedMedia := &handler.IndexedMedia{}
 	var caption string
 	results := gjson.Get(s, fmt.Sprintf(`data.threaded_conversation_with_injections_v2.instructions.0.entries.#(entryId="tweet-%v").content.itemContent.tweet_results.result`, string(TweetID)))

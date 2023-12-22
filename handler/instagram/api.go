@@ -6,9 +6,7 @@ import (
 	"fmt"
 	"gSmudgeAPI/cache"
 	"gSmudgeAPI/handler"
-	"image"
-	_ "image/jpeg"
-	_ "image/png"
+	"gSmudgeAPI/utils"
 	"io"
 	"log"
 	"net/http"
@@ -19,22 +17,6 @@ import (
 	"github.com/gocolly/colly"
 	"github.com/tidwall/gjson"
 )
-
-func getImageDimension(url string) (int, int) {
-	res, err := http.Get(url)
-	if err != nil {
-		panic(err)
-	}
-	defer res.Body.Close()
-
-	m, _, err := image.Decode(res.Body)
-	if err != nil {
-		panic(err)
-	}
-	g := m.Bounds()
-
-	return g.Dx(), g.Dy()
-}
 
 func rgraphql(PostID string) []byte {
 	req, err := http.NewRequest("GET", `https://www.instagram.com/graphql/query/?query_hash=b3055c01b4b222b8a47dc12b090e4e64`, nil)
@@ -65,7 +47,6 @@ func rgraphql(PostID string) []byte {
 }
 
 func InstagramIndexer(w http.ResponseWriter, r *http.Request) {
-	print(r.URL.String())
 	url := r.URL.Query().Get("url")
 	if len(url) == 0 {
 		response := "No URL specified"
@@ -85,7 +66,7 @@ func InstagramIndexer(w http.ResponseWriter, r *http.Request) {
 	indexedMedia := &handler.IndexedMedia{}
 	var caption string
 	c.OnHTML("div[data-media-type=GraphImage] img.EmbeddedMediaImage", func(h *colly.HTMLElement) {
-		width, height := getImageDimension(h.Attr("src"))
+		width, height := utils.GetImageDimension(h.Attr("src"))
 		indexedMedia.Medias = append(indexedMedia.Medias, handler.Medias{
 			Width:  int(width),
 			Height: int(height),
@@ -141,7 +122,15 @@ func InstagramIndexer(w http.ResponseWriter, r *http.Request) {
 	c.Visit(fmt.Sprintf("https://www.instagram.com/p/%v/embed/captioned/", PostID))
 
 	if indexedMedia.Medias == nil {
-		json := rgraphql(PostID)
+		Headers := map[string]string{
+			"Accept-Language": "en-US,en;q=0.9",
+			"Connection":      "close",
+			"Sec-Fetch-Mode":  "navigate",
+			"User-Agent":      "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:120.0) Gecko/20100101 Firefox/120.0",
+			"Referer":         fmt.Sprintf("https://www.instagram.com/p/%v/", PostID),
+		}
+		Query := map[string]string{"variables": fmt.Sprintf(`{"shortcode":"%v"}`, PostID)}
+		json := utils.GetResBody("https://www.instagram.com/graphql/query/?query_hash=b3055c01b4b222b8a47dc12b090e4e64", Query, Headers)
 		caption = gjson.GetBytes(json, "data.shortcode_media.edge_media_to_caption.edges.0.node.text").String()
 		display_resources := gjson.GetBytes(json, "data.shortcode_media.display_resources.@reverse.0")
 		is_video := gjson.GetBytes(json, "data.shortcode_media.is_video").Bool()
