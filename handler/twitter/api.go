@@ -10,6 +10,7 @@ import (
 	"log"
 	"net/http"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 
@@ -96,10 +97,8 @@ func TwitterIndexer(w http.ResponseWriter, r *http.Request) {
 	medias := results.Get("legacy.extended_entities.media")
 	for _, media := range medias.Array() {
 		var videoType string
-		for _, value := range []string{"animated_gif", "video"} {
-			if strings.Contains(media.Get("type").String(), value) {
-				videoType = "video"
-			}
+		if slices.Contains([]string{"animated_gif", "video"}, media.Get("type").String()) {
+			videoType = "video"
 		}
 
 		if videoType != "video" {
