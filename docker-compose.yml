@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  gSmudgeAPI:
+    image: ghcr.io/ruizlenato/gsmudgeapi:main
+    container_name: gSmudgeAPI
+    environment:
+      - REDIS_HOST=redis
+    ports:
+      - 6969:6969
+    restart: unless-stopped
+
+  redis:
+    image: redis:alpine
+    container_name: redis
+    restart: unless-stopped
