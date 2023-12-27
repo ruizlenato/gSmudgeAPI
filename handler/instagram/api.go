@@ -123,14 +123,13 @@ func InstagramIndexer(w http.ResponseWriter, r *http.Request) {
 
 	if indexedMedia.Medias == nil {
 		Headers := map[string]string{
-			"Accept-Language": "en-US,en;q=0.9",
-			"Connection":      "close",
-			"Sec-Fetch-Mode":  "navigate",
-			"User-Agent":      "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:120.0) Gecko/20100101 Firefox/120.0",
-			"Referer":         fmt.Sprintf("https://www.instagram.com/p/%v/", PostID),
+			"Sec-Fetch-Mode": "navigate",
+			"User-Agent":     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.0.0 Safari/537.36",
+			"Referer":        fmt.Sprintf("https://www.instagram.com/p/%v/", PostID),
 		}
-		Query := map[string]string{"variables": fmt.Sprintf(`{"shortcode":"%v"}`, PostID)}
-		json := utils.GetResBody("https://www.instagram.com/graphql/query/?query_hash=b3055c01b4b222b8a47dc12b090e4e64", Query, Headers)
+		Query := map[string]string{"query_hash": "9f8827793ef34641b2fb195d4d41151c", "variables": fmt.Sprintf(`{"shortcode":"%v"}`, PostID)}
+
+		json := utils.GetHTTPRes("https://www.instagram.com/graphql/query/", utils.RequestParams{Query: Query, Headers: Headers}).Body()
 		caption = gjson.GetBytes(json, "data.shortcode_media.edge_media_to_caption.edges.0.node.text").String()
 		display_resources := gjson.GetBytes(json, "data.shortcode_media.display_resources.@reverse.0")
 		is_video := gjson.GetBytes(json, "data.shortcode_media.is_video").Bool()

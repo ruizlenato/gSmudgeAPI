@@ -6,11 +6,17 @@ import (
 	_ "image/png"
 	"io"
 	"net/http"
+	"github.com/valyala/fasthttp"
 )
 
 type Header struct {
 	key   string
 	value string
+}
+
+type RequestParams struct {
+	Query   map[string]string
+	Headers map[string]string
 }
 
 func GetImageDimension(url string) (int, int) {
@@ -29,31 +35,23 @@ func GetImageDimension(url string) (int, int) {
 	return g.Dx(), g.Dy()
 }
 
-func GetResBody(Link string, Query map[string]string, Headers map[string]string) []byte {
-	req, err := http.NewRequest("GET", Link, nil)
-	if err != nil {
-		panic(err)
+func GetHTTPRes(Link string, params RequestParams) *fasthttp.Response {
+	req := fasthttp.AcquireRequest()
+	res := fasthttp.AcquireResponse()
+
+	client := &fasthttp.Client{}
+
+	req.Header.SetMethod("GET")
+	for key, value := range params.Headers {
+		req.Header.Set(key, value)
 	}
 
-	query := req.URL.Query()
-	for key, value := range Query {
-		query.Add(key, value)
+	req.SetRequestURI(Link)
+	for key, value := range params.Query {
+		req.URI().QueryArgs().Add(key, value)
 	}
 
-	req.URL.RawQuery = query.Encode()
-	for key, value := range Headers {
-		req.Header.Add(key, value)
-	}
+	client.Do(req, res)
 
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		panic(err)
-	}
-	defer resp.Body.Close()
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		panic(err)
-	}
-
-	return body
+	return res
 }

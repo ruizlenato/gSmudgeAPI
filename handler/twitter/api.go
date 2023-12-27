@@ -84,7 +84,7 @@ func TwitterIndexer(w http.ResponseWriter, r *http.Request) {
 		"fieldToggles": string(fieldTogglesJson),
 	}
 
-	body := utils.GetResBody("https://twitter.com/i/api/graphql/NmCeCgkVlsRGS1cAwqtgmw/TweetDetail", Query, Headers)
+	body := utils.GetHTTPRes("https://twitter.com/i/api/graphql/NmCeCgkVlsRGS1cAwqtgmw/TweetDetail", utils.RequestParams{Query: Query, Headers: Headers}).Body()
 	s := gjson.ParseBytes(body).String()
 	indexedMedia := &handler.IndexedMedia{}
 	var caption string

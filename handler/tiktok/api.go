@@ -23,7 +23,7 @@ func TikTokIndexer(w http.ResponseWriter, r *http.Request) {
 		"aweme_id": string(VideoID),
 		"aid":      "1128",
 	}
-	body := utils.GetResBody("https://api16-normal-c-useast1a.tiktokv.com/aweme/v1/feed/", Query, Headers)
+	body := utils.GetHTTPRes("https://api16-normal-c-useast1a.tiktokv.com/aweme/v1/feed/", utils.RequestParams{Query: Query, Headers: Headers}).Body()
 	caption := gjson.GetBytes(body, "aweme_list.0.desc").String()
 	indexedMedia := &handler.IndexedMedia{}
 
