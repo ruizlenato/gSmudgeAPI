@@ -16,5 +16,5 @@ COPY --from=builder /go/bin/gSmudgeAPI /go/bin/gSmudgeAPI
 
 RUN apk --no-cache add ca-certificates
 
-EXPOSE 7006
+EXPOSE 6969
 ENTRYPOINT ["/go/bin/gSmudgeAPI"]

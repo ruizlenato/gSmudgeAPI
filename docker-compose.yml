@@ -6,6 +6,7 @@ services:
     container_name: gSmudgeAPI
     environment:
       - REDIS_HOST=redis
+      - SOCKS_PROXY=
     ports:
       - 6969:6969
     restart: unless-stopped

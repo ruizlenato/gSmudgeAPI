@@ -4,9 +4,11 @@ import (
 	"image"
 	_ "image/jpeg"
 	_ "image/png"
-	"io"
 	"net/http"
+	"os"
+
 	"github.com/valyala/fasthttp"
+	"github.com/valyala/fasthttp/fasthttpproxy"
 )
 
 type Header struct {
@@ -39,7 +41,15 @@ func GetHTTPRes(Link string, params RequestParams) *fasthttp.Response {
 	req := fasthttp.AcquireRequest()
 	res := fasthttp.AcquireResponse()
 
-	client := &fasthttp.Client{}
+	var client *fasthttp.Client
+
+	if os.Getenv("SOCKS_PROXY") == "" {
+		client = &fasthttp.Client{}
+	} else {
+		client = &fasthttp.Client{
+		Dial: fasthttpproxy.FasthttpSocksDialer(os.Getenv("SOCKS_PROXY")),
+		}
+	}
 
 	req.Header.SetMethod("GET")
 	for key, value := range params.Headers {
