@@ -8,46 +8,60 @@ import (
 	"gSmudgeAPI/handler/instagram"
 	"gSmudgeAPI/handler/tiktok"
 	"gSmudgeAPI/handler/twitter"
+	"log"
 	"net/http"
 	"regexp"
 	"strings"
+
+	"github.com/valyala/fasthttp"
 )
 
-func cacheMiddleware(next http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func cacheMiddleware(next fasthttp.RequestHandler) fasthttp.RequestHandler {
+	return func(ctx *fasthttp.RequestCtx) {
 		var key string
-		if strings.HasPrefix(r.RequestURI, "/twitter?") || strings.HasPrefix(r.RequestURI, "/x?") {
-			key = (regexp.MustCompile((`.*(?:twitter|x).com/.+status/([A-Za-z0-9]+)`))).FindStringSubmatch(r.URL.Query().Get("url"))[1]
-		} else if strings.HasPrefix(r.RequestURI, "/instagram?") {
-			key = (regexp.MustCompile((`(?:reel|p)/([A-Za-z0-9_-]+)`))).FindStringSubmatch(r.URL.Query().Get("url"))[1]
-		} else if strings.HasPrefix(r.RequestURI, "/tiktok?") {
-			resp, _ := http.Get(r.URL.Query().Get("url"))
+		if strings.HasPrefix(string(ctx.RequestURI()), "/twitter?") || strings.HasPrefix(string(ctx.RequestURI()), "/x?") {
+			key = (regexp.MustCompile((`.*(?:twitter|x).com/.+status/([A-Za-z0-9]+)`))).FindStringSubmatch(string(ctx.QueryArgs().Peek("url")))[1]
+		} else if strings.HasPrefix(string(ctx.RequestURI()), "/instagram?") {
+			key = (regexp.MustCompile((`(?:reel|p)/([A-Za-z0-9_-]+)`))).FindStringSubmatch(string(ctx.QueryArgs().Peek("url")))[1]
+		} else if strings.HasPrefix(string(ctx.RequestURI()), "/tiktok?") {
+			resp, _ := http.Get(string(ctx.QueryArgs().Peek("url")))
 			key = (regexp.MustCompile((`/(?:video|v)/(\d+)`))).FindStringSubmatch(resp.Request.URL.String())[1]
 		} else {
-			key = r.RequestURI
+			key = string(ctx.RequestURI())
 		}
 
 		cachedResponse, err := cache.GetRedisClient().Get(context.Background(), key).Bytes()
 
 		if err == nil {
-			w.Header().Add("Content-Type", "application/json")
-			w.Write(cachedResponse)
+			ctx.Response.Header.Add("Content-Type", "application/json")
+			ctx.Write(cachedResponse)
 		} else {
-			next.ServeHTTP(w, r)
+			next(ctx)
 		}
 	}
 }
 
 func main() {
-	http.HandleFunc("/", handler.HandlerIndex)
-	http.HandleFunc("/instagram", cacheMiddleware(instagram.InstagramIndexer))
-	http.HandleFunc("/twitter", cacheMiddleware(twitter.TwitterIndexer))
-	http.HandleFunc("/x", cacheMiddleware(twitter.TwitterIndexer))
-	http.HandleFunc("/tiktok", cacheMiddleware(tiktok.TikTokIndexer))
+	requestHandler := func(ctx *fasthttp.RequestCtx) {
+		switch string(ctx.Path()) {
+		case "/":
+			handler.HandlerIndex(ctx)
+		case "/instagram":
+			cacheMiddleware(instagram.InstagramIndexer)(ctx)
+		case "/twitter":
+			twitter.TwitterIndexer(ctx)
+		case "/x":
+			twitter.TwitterIndexer(ctx)
+		case "/tiktok":
+			tiktok.TikTokIndexer(ctx)
+		default:
+			ctx.Error("Not Found", fasthttp.StatusNotFound)
+		}
+	}
 
+	// Iniciando o servidor fasthttp
 	fmt.Print("Starting gSmudgeAPI server on port 6969\n")
-	err := http.ListenAndServe(":6969", nil)
-	if err != nil {
-		panic(err)
+	if err := fasthttp.ListenAndServe(":6969", requestHandler); err != nil {
+		log.Fatalf("Erro ao iniciar o servidor: %s", err)
 	}
 }

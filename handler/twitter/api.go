@@ -8,7 +8,6 @@ import (
 	"gSmudgeAPI/handler"
 	"gSmudgeAPI/utils"
 	"log"
-	"net/http"
 	"regexp"
 	"slices"
 	"strings"
@@ -16,13 +15,14 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/tidwall/gjson"
+	"github.com/valyala/fasthttp"
 )
 
-func TwitterIndexer(w http.ResponseWriter, r *http.Request) {
-	url := r.URL.Query().Get("url")
+func TwitterIndexer(ctx *fasthttp.RequestCtx) {
+	url := string(ctx.QueryArgs().Peek("url"))
 	if len(url) == 0 {
-		response := "No URL specified"
-		http.Error(w, response, http.StatusMethodNotAllowed)
+		errorMessage := "No URL specified"
+		ctx.Error(errorMessage, fasthttp.StatusMethodNotAllowed)
 		return
 	}
 
@@ -128,7 +128,6 @@ func TwitterIndexer(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Println("Error setting cache:", err)
 	}
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(ixt)
-
+	ctx.Response.Header.Add("Content-Type", "application/json")
+	json.NewEncoder(ctx).Encode(ixt)
 }

@@ -13,10 +13,18 @@ import (
 	"time"
 
 	"github.com/tidwall/gjson"
+	"github.com/valyala/fasthttp"
 )
 
-func TikTokIndexer(w http.ResponseWriter, r *http.Request) {
-	resp, _ := http.Get(r.URL.Query().Get("url"))
+func TikTokIndexer(ctx *fasthttp.RequestCtx) {
+	url := string(ctx.QueryArgs().Peek("url"))
+	if len(url) == 0 {
+		errorMessage := "No URL specified"
+		ctx.Error(errorMessage, fasthttp.StatusMethodNotAllowed)
+		return
+	}
+
+	resp, _ := http.Get(url)
 	VideoID := (regexp.MustCompile((`/(?:video|v)/(\d+)`))).FindStringSubmatch(resp.Request.URL.String())[1]
 	Headers := map[string]string{"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:120.0) Gecko/20100101 Firefox/120.0"}
 	Query := map[string]string{
@@ -57,6 +65,6 @@ func TikTokIndexer(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Println("Error setting cache:", err)
 	}
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(ixt)
+	ctx.Response.Header.Add("Content-Type", "application/json")
+	json.NewEncoder(ctx).Encode(ixt)
 }

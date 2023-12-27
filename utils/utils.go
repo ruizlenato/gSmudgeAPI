@@ -47,7 +47,7 @@ func GetHTTPRes(Link string, params RequestParams) *fasthttp.Response {
 		client = &fasthttp.Client{}
 	} else {
 		client = &fasthttp.Client{
-		Dial: fasthttpproxy.FasthttpSocksDialer(os.Getenv("SOCKS_PROXY")),
+			Dial: fasthttpproxy.FasthttpSocksDialer(os.Getenv("SOCKS_PROXY")),
 		}
 	}
 

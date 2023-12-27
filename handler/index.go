@@ -2,7 +2,8 @@ package handler
 
 import (
 	"encoding/json"
-	"net/http"
+
+	"github.com/valyala/fasthttp"
 )
 
 type Medias struct {
@@ -18,10 +19,9 @@ type IndexedMedia struct {
 	Caption string   `json:"caption,omitempty"`
 }
 
-func HandlerIndex(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]interface{}{
+func HandlerIndex(ctx *fasthttp.RequestCtx) {
+	ctx.Response.Header.Add("Content-Type", "application/json")
+	json.NewEncoder(ctx).Encode(map[string]interface{}{
 		"/instagram": map[string]interface{}{
 			"method":       "GET",
 			"description":  "Scrapper for instagram",
@@ -30,6 +30,11 @@ func HandlerIndex(w http.ResponseWriter, r *http.Request) {
 		"/twitter": map[string]interface{}{
 			"method":       "GET",
 			"description":  "Scrapper for twitter/x",
+			"query_params": map[string]string{"url": "url"},
+		},
+		"/tiktok": map[string]interface{}{
+			"method":       "GET",
+			"description":  "Scrapper for tiktok",
 			"query_params": map[string]string{"url": "url"},
 		},
 	})

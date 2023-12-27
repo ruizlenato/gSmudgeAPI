@@ -7,50 +7,21 @@ import (
 	"gSmudgeAPI/cache"
 	"gSmudgeAPI/handler"
 	"gSmudgeAPI/utils"
-	"io"
 	"log"
-	"net/http"
 	"regexp"
 	"strings"
 	"time"
 
 	"github.com/gocolly/colly"
 	"github.com/tidwall/gjson"
+	"github.com/valyala/fasthttp"
 )
 
-func rgraphql(PostID string) []byte {
-	req, err := http.NewRequest("GET", `https://www.instagram.com/graphql/query/?query_hash=b3055c01b4b222b8a47dc12b090e4e64`, nil)
-	if err != nil {
-		panic(err)
-	}
-	q := req.URL.Query()
-	q.Add("variables", fmt.Sprintf(`{"shortcode":"%v"}`, PostID))
-	req.URL.RawQuery = q.Encode()
-
-	req.Header.Add("Accept-Language", "en-US,en;q=0.9")
-	req.Header.Add("Connection", "close")
-	req.Header.Add("Sec-Fetch-Mode", "navigate")
-	req.Header.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:120.0) Gecko/20100101 Firefox/120.0")
-	req.Header.Add("Referer", fmt.Sprintf("https://www.instagram.com/p/%v/", PostID))
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		panic(err)
-	}
-	defer resp.Body.Close()
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		panic(err)
-	}
-
-	return body
-}
-
-func InstagramIndexer(w http.ResponseWriter, r *http.Request) {
-	url := r.URL.Query().Get("url")
+func InstagramIndexer(ctx *fasthttp.RequestCtx) {
+	url := string(ctx.QueryArgs().Peek("url"))
 	if len(url) == 0 {
-		response := "No URL specified"
-		http.Error(w, response, http.StatusMethodNotAllowed)
+		errorMessage := "No URL specified"
+		ctx.Error(errorMessage, fasthttp.StatusMethodNotAllowed)
 		return
 	}
 
@@ -155,7 +126,6 @@ func InstagramIndexer(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Println("Error setting cache:", err)
 	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(ixt)
+	ctx.Response.Header.Add("Content-Type", "application/json")
+	json.NewEncoder(ctx).Encode(ixt)
 }
