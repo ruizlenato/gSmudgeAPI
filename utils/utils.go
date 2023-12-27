@@ -36,8 +36,14 @@ func GetImageDimension(url string) (int, int) {
 
 	return g.Dx(), g.Dy()
 }
+func GetRedirectURL(url string) string {
+	res, _ := http.Get(url)
+	return res.Request.URL.String()
+
+}
 
 func GetHTTPRes(Link string, params RequestParams) *fasthttp.Response {
+
 	req := fasthttp.AcquireRequest()
 	res := fasthttp.AcquireResponse()
 

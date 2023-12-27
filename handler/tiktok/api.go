@@ -7,7 +7,6 @@ import (
 	"gSmudgeAPI/handler"
 	"gSmudgeAPI/utils"
 	"log"
-	"net/http"
 	"regexp"
 	"slices"
 	"time"
@@ -24,8 +23,8 @@ func TikTokIndexer(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
-	resp, _ := http.Get(url)
-	VideoID := (regexp.MustCompile((`/(?:video|v)/(\d+)`))).FindStringSubmatch(resp.Request.URL.String())[1]
+	redirectURL := utils.GetRedirectURL(url)
+	VideoID := (regexp.MustCompile((`/(?:video|v)/(\d+)`))).FindStringSubmatch(redirectURL)[1]
 	Headers := map[string]string{"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:120.0) Gecko/20100101 Firefox/120.0"}
 	Query := map[string]string{
 		"aweme_id": string(VideoID),
@@ -56,7 +55,7 @@ func TikTokIndexer(ctx *fasthttp.RequestCtx) {
 	}
 
 	ixt := handler.IndexedMedia{
-		URL:     resp.Request.URL.String(),
+		URL:     redirectURL,
 		Medias:  indexedMedia.Medias,
 		Caption: caption}
 

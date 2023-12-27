@@ -8,8 +8,8 @@ import (
 	"gSmudgeAPI/handler/instagram"
 	"gSmudgeAPI/handler/tiktok"
 	"gSmudgeAPI/handler/twitter"
+	"gSmudgeAPI/utils"
 	"log"
-	"net/http"
 	"regexp"
 	"strings"
 
@@ -24,8 +24,7 @@ func cacheMiddleware(next fasthttp.RequestHandler) fasthttp.RequestHandler {
 		} else if strings.HasPrefix(string(ctx.RequestURI()), "/instagram?") {
 			key = (regexp.MustCompile((`(?:reel|p)/([A-Za-z0-9_-]+)`))).FindStringSubmatch(string(ctx.QueryArgs().Peek("url")))[1]
 		} else if strings.HasPrefix(string(ctx.RequestURI()), "/tiktok?") {
-			resp, _ := http.Get(string(ctx.QueryArgs().Peek("url")))
-			key = (regexp.MustCompile((`/(?:video|v)/(\d+)`))).FindStringSubmatch(resp.Request.URL.String())[1]
+			key = (regexp.MustCompile((`/(?:video|v)/(\d+)`))).FindStringSubmatch(utils.GetRedirectURL(string(ctx.QueryArgs().Peek("url"))))[1]
 		} else {
 			key = string(ctx.RequestURI())
 		}
@@ -53,7 +52,7 @@ func main() {
 		case "/x":
 			twitter.TwitterIndexer(ctx)
 		case "/tiktok":
-			tiktok.TikTokIndexer(ctx)
+			cacheMiddleware(tiktok.TikTokIndexer)(ctx)
 		default:
 			ctx.Error("Not Found", fasthttp.StatusNotFound)
 		}
