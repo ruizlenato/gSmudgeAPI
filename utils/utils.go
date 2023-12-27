@@ -4,17 +4,13 @@ import (
 	"image"
 	_ "image/jpeg"
 	_ "image/png"
+	"log"
 	"net/http"
 	"os"
 
 	"github.com/valyala/fasthttp"
 	"github.com/valyala/fasthttp/fasthttpproxy"
 )
-
-type Header struct {
-	key   string
-	value string
-}
 
 type RequestParams struct {
 	Query   map[string]string
@@ -50,10 +46,11 @@ func GetHTTPRes(Link string, params RequestParams) *fasthttp.Response {
 	var client *fasthttp.Client
 
 	if os.Getenv("SOCKS_PROXY") == "" {
-		client = &fasthttp.Client{}
+		client = &fasthttp.Client{ReadBufferSize: 8192}
 	} else {
 		client = &fasthttp.Client{
-			Dial: fasthttpproxy.FasthttpSocksDialer(os.Getenv("SOCKS_PROXY")),
+			ReadBufferSize: 8192,
+			Dial:           fasthttpproxy.FasthttpSocksDialer(os.Getenv("SOCKS_PROXY")),
 		}
 	}
 
@@ -67,7 +64,10 @@ func GetHTTPRes(Link string, params RequestParams) *fasthttp.Response {
 		req.URI().QueryArgs().Add(key, value)
 	}
 
-	client.Do(req, res)
+	err := client.Do(req, res)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	return res
 }
