@@ -83,6 +83,7 @@ func InstagramIndexer(ctx *fasthttp.RequestCtx) {
 	match := r.FindStringSubmatch(string(res))
 	if len(match) == 2 {
 		rJson := utils.UnescapeJSON(match[1])
+		caption = gjson.Get(rJson, "shortcode_media.edge_media_to_caption.edges.0.node.text").String()
 		result := gjson.Get(rJson, "shortcode_media.edge_sidecar_to_children.edges")
 		if !result.Exists() {
 			display_resources := gjson.Get(rJson, "shortcode_media.display_resources.@reverse.0")
@@ -91,7 +92,7 @@ func InstagramIndexer(ctx *fasthttp.RequestCtx) {
 				indexedMedia.Medias = append(indexedMedia.Medias, handler.Medias{
 					Width:  int(results.Get("config_width").Int()),
 					Height: int(results.Get("config_height").Int()),
-					Source: strings.Replace(results.Get("src").String(), `\/`, `/`, -1),
+					Source: strings.ReplaceAll(results.Get("src").String(), `\/`, `/`),
 					Video:  is_video,
 				})
 			}
@@ -103,12 +104,33 @@ func InstagramIndexer(ctx *fasthttp.RequestCtx) {
 				indexedMedia.Medias = append(indexedMedia.Medias, handler.Medias{
 					Width:  int(results.Get("config_width").Int()),
 					Height: int(results.Get("config_height").Int()),
-					Source: strings.Replace(results.Get("src").String(), `\/`, `/`, -1),
+					Source: strings.ReplaceAll(results.Get("src").String(), `\/`, `/`),
 					Video:  is_video,
 				})
 			}
 		}
 
+	} else {
+		// Media
+		re := regexp.MustCompile(`class="Content(.*?)src="(.*?)"`)
+		mainMediaData := re.FindAllStringSubmatch(string(res), -1)
+		mainMediaURL := (strings.ReplaceAll(mainMediaData[0][2], "amp;", ""))
+
+		// Caption
+		re = regexp.MustCompile(`(?s)class="Caption"(.*?)class="CaptionUsername"(.*?)<\/a>(.*?)<div`)
+		captionData := re.FindAllStringSubmatch(string(res), -1)
+		if len(captionData) > 0 && len(captionData[0]) > 2 {
+			re = regexp.MustCompile(`<[^>]*>`)
+			caption = strings.TrimSpace(re.ReplaceAllString(captionData[0][3], ""))
+		}
+
+		width, height := utils.GetImageDimension(mainMediaURL)
+		indexedMedia.Medias = append(indexedMedia.Medias, handler.Medias{
+			Width:  width,
+			Height: height,
+			Source: mainMediaURL,
+			Video:  false,
+		})
 	}
 
 	if indexedMedia.Medias == nil {
