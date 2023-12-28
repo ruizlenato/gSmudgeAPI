@@ -15,6 +15,7 @@ import (
 type RequestParams struct {
 	Query   map[string]string
 	Headers map[string]string
+	Proxy   bool
 }
 
 func GetImageDimension(url string) (int, int) {
@@ -39,19 +40,18 @@ func GetRedirectURL(url string) string {
 }
 
 func GetHTTPRes(Link string, params RequestParams) *fasthttp.Response {
-
 	req := fasthttp.AcquireRequest()
 	res := fasthttp.AcquireResponse()
 
 	var client *fasthttp.Client
 
-	if os.Getenv("SOCKS_PROXY") == "" {
-		client = &fasthttp.Client{ReadBufferSize: 8192}
-	} else {
+	if os.Getenv("SOCKS_PROXY") != "" && params.Proxy {
 		client = &fasthttp.Client{
 			ReadBufferSize: 8192,
 			Dial:           fasthttpproxy.FasthttpSocksDialer(os.Getenv("SOCKS_PROXY")),
 		}
+	} else {
+		client = &fasthttp.Client{ReadBufferSize: 8192}
 	}
 
 	req.Header.SetMethod("GET")

@@ -23,7 +23,7 @@ func graphql(postID string, indexedMedia *handler.IndexedMedia) (string, *handle
 	}
 	Query := map[string]string{"query_hash": "9f8827793ef34641b2fb195d4d41151c", "variables": fmt.Sprintf(`{"shortcode":"%v"}`, postID)}
 
-	res := utils.GetHTTPRes("https://www.instagram.com/graphql/query/", utils.RequestParams{Query: Query, Headers: Headers}).Body()
+	res := utils.GetHTTPRes("https://www.instagram.com/graphql/query/", utils.RequestParams{Query: Query, Headers: Headers, Proxy: true}).Body()
 	caption := gjson.GetBytes(res, "data.shortcode_media.edge_media_to_caption.edges.0.node.text").String()
 	if gjson.GetBytes(res, "data.shortcode_media.__typename").String() == "GraphSidecar" {
 		display_resources := gjson.GetBytes(res, "data.shortcode_media.edge_sidecar_to_children.edges")
