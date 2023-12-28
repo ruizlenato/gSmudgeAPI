@@ -9,6 +9,7 @@ import (
 	"gSmudgeAPI/utils"
 	"log"
 	"regexp"
+	"strings"
 	"time"
 
 	"github.com/tidwall/gjson"
@@ -60,12 +61,61 @@ func InstagramIndexer(ctx *fasthttp.RequestCtx) {
 		ctx.Error(errorMessage, fasthttp.StatusMethodNotAllowed)
 		return
 	}
+	indexedMedia := &handler.IndexedMedia{}
+	var caption string
 
 	PostID := (regexp.MustCompile((`(?:reel|p)/([A-Za-z0-9_-]+)`))).FindStringSubmatch(url)[1]
 
-	caption, indexedMedia := graphql(PostID, &handler.IndexedMedia{})
-	for caption == "" {
+	Headers := map[string]string{
+		"accept":                    "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
+		"accept-language":           "en-US,en;q=0.9",
+		"cache-control":             "max-age=0",
+		"connection":                "close",
+		"sec-fetch-mode":            "navigate",
+		"upgrade-insecure-requests": "1",
+		"referer":                   "https://www.instagram.com/",
+		"User-Agent":                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.0.0 Safari/537.36",
+		"viewport-width":            "1280",
+	}
+
+	res := utils.GetHTTPRes(fmt.Sprintf("https://www.instagram.com/p/%v/embed/captioned/", PostID), utils.RequestParams{Headers: Headers}).Body()
+	r := regexp.MustCompile(`\\\"gql_data\\\":([\s\S]*)\}\"\}`)
+	match := r.FindStringSubmatch(string(res))
+	if len(match) == 2 {
+		rJson := utils.UnescapeJSON(match[1])
+		result := gjson.Get(rJson, "shortcode_media.edge_sidecar_to_children.edges")
+		if !result.Exists() {
+			display_resources := gjson.Get(rJson, "shortcode_media.display_resources.@reverse.0")
+			is_video := gjson.Get(rJson, "shortcode_media.is_video").Bool()
+			for _, results := range display_resources.Array() {
+				indexedMedia.Medias = append(indexedMedia.Medias, handler.Medias{
+					Width:  int(results.Get("config_width").Int()),
+					Height: int(results.Get("config_height").Int()),
+					Source: strings.Replace(results.Get("src").String(), `\/`, `/`, -1),
+					Video:  is_video,
+				})
+			}
+		}
+		for _, results := range result.Array() {
+			is_video := results.Get("node.is_video").Bool()
+			display_resources := results.Get("node.display_resources.@reverse.0")
+			for _, results := range display_resources.Array() {
+				indexedMedia.Medias = append(indexedMedia.Medias, handler.Medias{
+					Width:  int(results.Get("config_width").Int()),
+					Height: int(results.Get("config_height").Int()),
+					Source: strings.Replace(results.Get("src").String(), `\/`, `/`, -1),
+					Video:  is_video,
+				})
+			}
+		}
+
+	}
+
+	if indexedMedia.Medias == nil {
 		caption, indexedMedia = graphql(PostID, &handler.IndexedMedia{})
+		for caption == "" {
+			caption, indexedMedia = graphql(PostID, &handler.IndexedMedia{})
+		}
 	}
 
 	ixt := handler.IndexedMedia{

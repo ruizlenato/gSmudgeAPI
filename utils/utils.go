@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"regexp"
 
 	"github.com/valyala/fasthttp"
 	"github.com/valyala/fasthttp/fasthttpproxy"
@@ -16,6 +17,22 @@ type RequestParams struct {
 	Query   map[string]string
 	Headers map[string]string
 	Proxy   bool
+}
+
+func UnescapeJSON(str string) string {
+	re := regexp.MustCompile(`\\(u[0-9a-fA-F]{4}|"|\\)`)
+	return re.ReplaceAllStringFunc(str, func(s string) string {
+		switch s {
+		case `\"`:
+			return `"`
+		case `\\`:
+			return `\`
+		case `\u0022`:
+			return `"`
+		default:
+			return s
+		}
+	})
 }
 
 func GetImageDimension(url string) (int, int) {
