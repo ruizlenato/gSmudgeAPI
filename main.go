@@ -18,24 +18,37 @@ import (
 
 func cacheMiddleware(next fasthttp.RequestHandler) fasthttp.RequestHandler {
 	return func(ctx *fasthttp.RequestCtx) {
-		var key string
+		var matches []string
+		url := string(ctx.QueryArgs().Peek("url"))
 		if strings.HasPrefix(string(ctx.RequestURI()), "/twitter?") || strings.HasPrefix(string(ctx.RequestURI()), "/x?") {
-			key = (regexp.MustCompile((`.*(?:twitter|x).com/.+status/([A-Za-z0-9]+)`))).FindStringSubmatch(string(ctx.QueryArgs().Peek("url")))[1]
+			re := regexp.MustCompile((`.*(?:twitter|x).com/.+status/([A-Za-z0-9]+)`))
+			fmt.Println(len(re.FindStringSubmatch(url)))
+			matches = re.FindStringSubmatch(url)
 		} else if strings.HasPrefix(string(ctx.RequestURI()), "/instagram?") {
-			key = (regexp.MustCompile((`(?:reel|p)/([A-Za-z0-9_-]+)`))).FindStringSubmatch(string(ctx.QueryArgs().Peek("url")))[1]
+			re := regexp.MustCompile((`(?:reel|p)/([A-Za-z0-9_-]+)`))
+			matches = re.FindStringSubmatch(url)
 		} else if strings.HasPrefix(string(ctx.RequestURI()), "/tiktok?") {
-			key = (regexp.MustCompile((`/(?:video|v)/(\d+)`))).FindStringSubmatch(utils.GetRedirectURL(string(ctx.QueryArgs().Peek("url"))))[1]
+			re := regexp.MustCompile((`/(?:video|v)/(\d+)`))
+			matches = re.FindStringSubmatch(utils.GetRedirectURL(url))
 		} else {
-			key = string(ctx.RequestURI())
+			errorMessage := "URL Invalid"
+			ctx.Error(errorMessage, fasthttp.StatusMethodNotAllowed)
+			return
 		}
 
-		cachedResponse, err := cache.GetRedisClient().Get(context.Background(), key).Bytes()
+		if len(matches) > 0 {
+			cachedResponse, err := cache.GetRedisClient().Get(context.Background(), matches[1]).Bytes()
 
-		if err == nil {
-			ctx.Response.Header.Add("Content-Type", "application/json")
-			ctx.Write(cachedResponse)
+			if err == nil {
+				ctx.Response.Header.Add("Content-Type", "application/json")
+				ctx.Write(cachedResponse)
+			} else {
+				next(ctx)
+			}
 		} else {
-			next(ctx)
+			errorMessage := "URL Invalid"
+			ctx.Error(errorMessage, fasthttp.StatusMethodNotAllowed)
+			return
 		}
 	}
 }
