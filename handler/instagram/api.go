@@ -135,7 +135,7 @@ func InstagramIndexer(ctx *fasthttp.RequestCtx) {
 
 	if indexedMedia.Medias == nil {
 		caption, indexedMedia = graphql(PostID, &handler.IndexedMedia{})
-		for caption == "" {
+		for i := 0; caption == "" && i < 15; i++ {
 			caption, indexedMedia = graphql(PostID, &handler.IndexedMedia{})
 		}
 	}
@@ -147,9 +147,11 @@ func InstagramIndexer(ctx *fasthttp.RequestCtx) {
 
 	jsonResponse, _ := json.Marshal(ixt)
 
-	err := cache.GetRedisClient().Set(context.Background(), PostID, jsonResponse, 24*time.Hour*60).Err()
-	if err != nil {
-		log.Println("Error setting cache:", err)
+	if indexedMedia.Medias != nil {
+		err := cache.GetRedisClient().Set(context.Background(), PostID, jsonResponse, 24*time.Hour*60).Err()
+		if err != nil {
+			log.Println("Error setting cache:", err)
+		}
 	}
 	ctx.Response.Header.Add("Content-Type", "application/json")
 	json.NewEncoder(ctx).Encode(ixt)
