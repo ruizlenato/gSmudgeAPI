@@ -69,7 +69,7 @@ func graphql(postID string, indexedMedia *handler.IndexedMedia) string {
 		`__spin_t=1705025808`,
 		`fb_api_caller_class=RelayModern`,
 		`fb_api_req_friendly_name=PolarisPostActionLoadPostQueryQuery`,
-		fmt.Sprintf(`variables={"shortcode": "%v","fetch_comment_count":40,"fetch_related_profile_media_count":3,"parent_comment_count":24,"child_comment_count":3,"fetch_like_count":10,"fetch_tagged_user_count":null,"fetch_preview_comment_count":2,"has_threaded_comments":true,"hoisted_comment_id":null,"hoisted_reply_id":null}`, postID),
+		fmt.Sprintf(`variables={"shortcode": "%v","fetch_comment_count":2,"fetch_related_profile_media_count":0,"parent_comment_count":0,"child_comment_count":0,"fetch_like_count":10,"fetch_tagged_user_count":null,"fetch_preview_comment_count":2,"has_threaded_comments":true,"hoisted_comment_id":null,"hoisted_reply_id":null}`, postID),
 		`server_timestamps=true`,
 		`doc_id=10015901848480474`,
 	}
@@ -119,33 +119,31 @@ func InstagramIndexer(ctx *fasthttp.RequestCtx) {
 	res := utils.GetHTTPRes(fmt.Sprintf("https://www.instagram.com/p/%v/embed/captioned/", PostID), utils.RequestParams{Headers: Headers}).Body()
 	r := regexp.MustCompile(`\\\"gql_data\\\":([\s\S]*)\}\"\}`)
 	match := r.FindStringSubmatch(string(res))
-	graphql(PostID, &handler.IndexedMedia{})
 
 	if len(match) == 2 {
 		rJson := utils.UnescapeJSON(match[1])
 		caption = gjson.Get(rJson, "shortcode_media.edge_media_to_caption.edges.0.node.text").String()
-		result := gjson.Get(rJson, "shortcode_media.edge_sidecar_to_children.edges")
-		if !result.Exists() {
-			display_resources := gjson.Get(rJson, "shortcode_media.display_resources.@reverse.0")
-			is_video := gjson.Get(rJson, "shortcode_media.is_video").Bool()
-			for _, results := range display_resources.Array() {
-				indexedMedia.Medias = append(indexedMedia.Medias, handler.Medias{
-					Height: int(results.Get("config_height").Int()),
-					Width:  int(results.Get("config_width").Int()),
-					Source: strings.ReplaceAll(results.Get("src").String(), `\/`, `/`),
-					Video:  is_video,
-				})
+		typename := gjson.Get(rJson, "shortcode_media.__typename").String()
+		if typename == "GraphSidecar" {
+			for _, results := range gjson.Get(rJson, "shortcode_media.edge_sidecar_to_children.edges").Array() {
+				is_video := results.Get("node.is_video").Bool()
+				display_resources := results.Get("node.display_resources.@reverse.0")
+				for _, results := range display_resources.Array() {
+					indexedMedia.Medias = append(indexedMedia.Medias, handler.Medias{
+						Height: int(results.Get("config_height").Int()),
+						Width:  int(results.Get("config_width").Int()),
+						Source: strings.ReplaceAll(results.Get("src").String(), `\/`, `/`),
+						Video:  is_video,
+					})
+				}
 			}
-		}
-		for _, results := range result.Array() {
-			is_video := results.Get("node.is_video").Bool()
-			display_resources := results.Get("node.display_resources.@reverse.0")
-			for _, results := range display_resources.Array() {
+		} else if typename == "GraphVideo" {
+			for _, results := range gjson.Get(rJson, "shortcode_media.dimensions").Array() {
 				indexedMedia.Medias = append(indexedMedia.Medias, handler.Medias{
-					Height: int(results.Get("config_height").Int()),
-					Width:  int(results.Get("config_width").Int()),
-					Source: strings.ReplaceAll(results.Get("src").String(), `\/`, `/`),
-					Video:  is_video,
+					Height: int(results.Get("height").Int()),
+					Width:  int(results.Get("width").Int()),
+					Source: strings.ReplaceAll(gjson.Get(rJson, "shortcode_media.video_url").String(), `\/`, `/`),
+					Video:  true,
 				})
 			}
 		}
@@ -178,8 +176,7 @@ func InstagramIndexer(ctx *fasthttp.RequestCtx) {
 		result := gjson.Get(rjson, "data.xdt_shortcode_media")
 		caption = result.Get("edge_media_to_caption.edges.0.node.text").String()
 		if strings.Contains(result.Get("__typename").String(), "Video") {
-			dimensions := result.Get("dimensions")
-			for _, results := range dimensions.Array() {
+			for _, results := range result.Get("dimensions").Array() {
 				indexedMedia.Medias = append(indexedMedia.Medias, handler.Medias{
 					Height: int(results.Get("height").Int()),
 					Width:  int(results.Get("width").Int()),
