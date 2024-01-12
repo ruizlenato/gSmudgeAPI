@@ -6,17 +6,14 @@ import (
 	_ "image/png"
 	"log"
 	"net/http"
-	"os"
 	"regexp"
 
 	"github.com/valyala/fasthttp"
-	"github.com/valyala/fasthttp/fasthttpproxy"
 )
 
 type RequestParams struct {
 	Query   map[string]string
 	Headers map[string]string
-	Proxy   bool
 }
 
 func UnescapeJSON(str string) string {
@@ -61,16 +58,7 @@ func GetHTTPRes(Link string, params RequestParams) *fasthttp.Response {
 	req := fasthttp.AcquireRequest()
 	res := fasthttp.AcquireResponse()
 
-	var client *fasthttp.Client
-
-	if os.Getenv("SOCKS_PROXY") != "" && params.Proxy {
-		client = &fasthttp.Client{
-			ReadBufferSize: 8192,
-			Dial:           fasthttpproxy.FasthttpSocksDialer(os.Getenv("SOCKS_PROXY")),
-		}
-	} else {
-		client = &fasthttp.Client{ReadBufferSize: 8192}
-	}
+	client := &fasthttp.Client{ReadBufferSize: 8192}
 
 	req.Header.SetMethod("GET")
 	for key, value := range params.Headers {
