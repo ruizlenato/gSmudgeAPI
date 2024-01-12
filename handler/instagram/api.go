@@ -64,7 +64,7 @@ func InstagramIndexer(ctx *fasthttp.RequestCtx) {
 	indexedMedia := &handler.IndexedMedia{}
 	var caption string
 
-	PostID := (regexp.MustCompile((`(?:reel|p)/([A-Za-z0-9_-]+)`))).FindStringSubmatch(url)[1]
+	PostID := (regexp.MustCompile((`(?:reel(?:s?)|p)/([A-Za-z0-9_-]+)`))).FindStringSubmatch(url)[1]
 
 	Headers := map[string]string{
 		"accept":                    "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",

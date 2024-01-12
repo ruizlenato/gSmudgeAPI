@@ -25,7 +25,7 @@ func cacheMiddleware(next fasthttp.RequestHandler) fasthttp.RequestHandler {
 			fmt.Println(len(re.FindStringSubmatch(url)))
 			matches = re.FindStringSubmatch(url)
 		} else if strings.HasPrefix(string(ctx.RequestURI()), "/instagram?") {
-			re := regexp.MustCompile((`(?:reel|p)/([A-Za-z0-9_-]+)`))
+			re := regexp.MustCompile((`(?:reel(?:s?)|p)/([A-Za-z0-9_-]+)`))
 			matches = re.FindStringSubmatch(url)
 		} else if strings.HasPrefix(string(ctx.RequestURI()), "/tiktok?") {
 			re := regexp.MustCompile((`/(?:video|v)/(\d+)`))
@@ -36,7 +36,7 @@ func cacheMiddleware(next fasthttp.RequestHandler) fasthttp.RequestHandler {
 			return
 		}
 
-		if len(matches) > 0 {
+		if len(matches) > 1 {
 			cachedResponse, err := cache.GetRedisClient().Get(context.Background(), matches[1]).Bytes()
 
 			if err == nil {
