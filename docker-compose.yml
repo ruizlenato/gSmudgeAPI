@@ -1,6 +1,11 @@
 version: '3.8'
 
 services:
+  redis:
+    image: redis:alpine
+    container_name: redis
+    restart: unless-stopped
+
   gSmudgeAPI:
     image: ghcr.io/ruizlenato/gsmudgeapi:main
     container_name: gSmudgeAPI
@@ -9,9 +14,4 @@ services:
       - SOCKS_PROXY=
     ports:
       - 6969:6969
-    restart: unless-stopped
-
-  redis:
-    image: redis:alpine
-    container_name: redis
     restart: unless-stopped

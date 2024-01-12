@@ -7,8 +7,8 @@ import (
 )
 
 type Medias struct {
-	Width  int    `json:"width,omitempty"`
 	Height int    `json:"height,omitempty"`
+	Width  int    `json:"width,omitempty"`
 	Source string `json:"src"`
 	Video  bool   `json:"is_video"`
 }

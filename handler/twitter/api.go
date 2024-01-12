@@ -103,15 +103,15 @@ func TwitterIndexer(ctx *fasthttp.RequestCtx) {
 
 		if videoType != "video" {
 			indexedMedia.Medias = append(indexedMedia.Medias, handler.Medias{
-				Width:  int(media.Get("original_info.width").Int()),
 				Height: int(media.Get("original_info.height").Int()),
+				Width:  int(media.Get("original_info.width").Int()),
 				Source: media.Get("media_url_https").String(),
 				Video:  false,
 			})
 		} else {
 			indexedMedia.Medias = append(indexedMedia.Medias, handler.Medias{
-				Width:  int(media.Get("original_info.width").Int()),
 				Height: int(media.Get("original_info.height").Int()),
+				Width:  int(media.Get("original_info.width").Int()),
 				Source: media.Get("video_info.variants.0.url").String(),
 				Video:  true,
 			})

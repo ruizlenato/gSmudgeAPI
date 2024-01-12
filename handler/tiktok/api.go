@@ -37,8 +37,8 @@ func TikTokIndexer(ctx *fasthttp.RequestCtx) {
 	if slices.Contains([]int{2, 68, 150}, int(gjson.GetBytes(body, "aweme_list.0.aweme_type").Int())) {
 		for _, p := range gjson.GetBytes(body, "aweme_list.0.image_post_info.images").Array() {
 			indexedMedia.Medias = append(indexedMedia.Medias, handler.Medias{
-				Width:  int(p.Get("display_image.width").Int()),
 				Height: int(p.Get("display_image.height").Int()),
+				Width:  int(p.Get("display_image.width").Int()),
 				Source: p.Get("display_image.url_list.0").String(),
 				Video:  false,
 			})
@@ -46,8 +46,8 @@ func TikTokIndexer(ctx *fasthttp.RequestCtx) {
 	} else {
 		for _, v := range gjson.GetBytes(body, "aweme_list.0.video.play_addr").Array() {
 			indexedMedia.Medias = append(indexedMedia.Medias, handler.Medias{
-				Width:  int(v.Get("width").Int()),
 				Height: int(v.Get("height").Int()),
+				Width:  int(v.Get("width").Int()),
 				Source: v.Get("url_list.0").String(),
 				Video:  true,
 			})

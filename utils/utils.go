@@ -48,8 +48,9 @@ func GetImageDimension(url string) (int, int) {
 	}
 	g := m.Bounds()
 
-	return g.Dx(), g.Dy()
+	return g.Dy(), g.Dx()
 }
+
 func GetRedirectURL(url string) string {
 	res, _ := http.Get(url)
 	return res.Request.URL.String()

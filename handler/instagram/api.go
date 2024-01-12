@@ -92,6 +92,7 @@ func InstagramIndexer(ctx *fasthttp.RequestCtx) {
 				indexedMedia.Medias = append(indexedMedia.Medias, handler.Medias{
 					Width:  int(results.Get("config_width").Int()),
 					Height: int(results.Get("config_height").Int()),
+					Width:  int(results.Get("config_width").Int()),
 					Source: strings.ReplaceAll(results.Get("src").String(), `\/`, `/`),
 					Video:  is_video,
 				})
@@ -104,6 +105,7 @@ func InstagramIndexer(ctx *fasthttp.RequestCtx) {
 				indexedMedia.Medias = append(indexedMedia.Medias, handler.Medias{
 					Width:  int(results.Get("config_width").Int()),
 					Height: int(results.Get("config_height").Int()),
+					Width:  int(results.Get("config_width").Int()),
 					Source: strings.ReplaceAll(results.Get("src").String(), `\/`, `/`),
 					Video:  is_video,
 				})
@@ -124,10 +126,11 @@ func InstagramIndexer(ctx *fasthttp.RequestCtx) {
 			caption = strings.TrimSpace(re.ReplaceAllString(captionData[0][3], ""))
 		}
 
-		width, height := utils.GetImageDimension(mainMediaURL)
+		height, width := utils.GetImageDimension(mainMediaURL)
 		indexedMedia.Medias = append(indexedMedia.Medias, handler.Medias{
 			Width:  width,
 			Height: height,
+			Width:  width,
 			Source: mainMediaURL,
 			Video:  false,
 		})
