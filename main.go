@@ -46,7 +46,7 @@ func cacheMiddleware(next fasthttp.RequestHandler) fasthttp.RequestHandler {
 				next(ctx)
 			}
 		} else {
-			errorMessage := "URL Invalid"
+			errorMessage := "No URL"
 			ctx.Error(errorMessage, fasthttp.StatusMethodNotAllowed)
 			return
 		}
@@ -61,9 +61,9 @@ func main() {
 		case "/instagram":
 			cacheMiddleware(instagram.InstagramIndexer)(ctx)
 		case "/twitter":
-			twitter.TwitterIndexer(ctx)
+			cacheMiddleware(twitter.TwitterIndexer)(ctx)
 		case "/x":
-			twitter.TwitterIndexer(ctx)
+			cacheMiddleware(twitter.TwitterIndexer)(ctx)
 		case "/tiktok":
 			cacheMiddleware(tiktok.TikTokIndexer)(ctx)
 		default:
