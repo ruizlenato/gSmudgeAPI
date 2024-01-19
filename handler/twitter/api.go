@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/tidwall/gjson"
 	"github.com/valyala/fasthttp"
 )
 
@@ -85,46 +84,60 @@ func TwitterIndexer(ctx *fasthttp.RequestCtx) {
 	}
 
 	body := utils.GetHTTPRes("https://twitter.com/i/api/graphql/NmCeCgkVlsRGS1cAwqtgmw/TweetDetail", utils.RequestParams{Query: Query, Headers: Headers}).Body()
-	s := gjson.ParseBytes(body).String()
-	indexedMedia := &handler.IndexedMedia{}
-	var caption string
-	results := gjson.Get(s, fmt.Sprintf(`data.threaded_conversation_with_injections_v2.instructions.0.entries.#(entryId="tweet-%v").content.itemContent.tweet_results.result`, string(TweetID)))
-	if results.Get("__typename").String() == "TweetWithVisibilityResults" {
-		results = results.Get("tweet")
-	}
-	caption = results.Get("legacy.full_text").String()
 
-	medias := results.Get("legacy.extended_entities.media")
-	for _, media := range medias.Array() {
+	var tweetData TweetData
+	err := json.Unmarshal(body, &tweetData)
+	if err != nil {
+		log.Println(err)
+	}
+
+	var tweetResult interface{}
+	indexedMedia := &handler.IndexedMedia{}
+
+	for _, entry := range tweetData.Data.ThreadedConversationWithInjectionsV2.Instructions[0].Entries {
+		if entry.EntryID == fmt.Sprintf("tweet-%v", TweetID) {
+			if entry.Content.ItemContent.TweetResults.Result.Typename == "TweetWithVisibilityResults" {
+				tweetResult = entry.Content.ItemContent.TweetResults.Result.Tweet.Legacy
+			} else {
+				tweetResult = entry.Content.ItemContent.TweetResults.Result.Legacy
+			}
+			break
+		}
+	}
+
+	var caption string
+	if tweet, ok := tweetResult.(Legacy); ok {
+		caption = tweet.FullText
+	}
+
+	for _, media := range tweetResult.(Legacy).ExtendedEntities.Media {
 		var videoType string
-		if slices.Contains([]string{"animated_gif", "video"}, media.Get("type").String()) {
+		if slices.Contains([]string{"animated_gif", "video"}, media.Type) {
 			videoType = "video"
 		}
-
 		if videoType != "video" {
 			indexedMedia.Medias = append(indexedMedia.Medias, handler.Medias{
-				Height: int(media.Get("original_info.height").Int()),
-				Width:  int(media.Get("original_info.width").Int()),
-				Source: media.Get("media_url_https").String(),
+				Height: media.OriginalInfo.Height,
+				Width:  media.OriginalInfo.Width,
+				Source: media.MediaURLHTTPS,
 				Video:  false,
 			})
 		} else {
 			indexedMedia.Medias = append(indexedMedia.Medias, handler.Medias{
-				Height: int(media.Get("original_info.height").Int()),
-				Width:  int(media.Get("original_info.width").Int()),
-				Source: media.Get("video_info.variants.0.url").String(),
+				Height: media.OriginalInfo.Height,
+				Width:  media.OriginalInfo.Width,
+				Source: media.VideoInfo.Variants[0].URL,
 				Video:  true,
 			})
 		}
 	}
-
 	ixt := handler.IndexedMedia{
 		URL:     url,
 		Medias:  indexedMedia.Medias,
 		Caption: caption}
 
 	jsonResponse, _ := json.Marshal(ixt)
-	err := cache.GetRedisClient().Set(context.Background(), TweetID, jsonResponse, 24*time.Hour*60).Err()
+	err = cache.GetRedisClient().Set(context.Background(), TweetID, jsonResponse, 24*time.Hour*60).Err()
 	if err != nil {
 		log.Println("Error setting cache:", err)
 	}
