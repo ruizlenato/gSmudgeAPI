@@ -22,7 +22,6 @@ func cacheMiddleware(next fasthttp.RequestHandler) fasthttp.RequestHandler {
 		url := string(ctx.QueryArgs().Peek("url"))
 		if strings.HasPrefix(string(ctx.RequestURI()), "/twitter?") || strings.HasPrefix(string(ctx.RequestURI()), "/x?") {
 			re := regexp.MustCompile((`.*(?:twitter|x).com/.+status/([A-Za-z0-9]+)`))
-			fmt.Println(len(re.FindStringSubmatch(url)))
 			matches = re.FindStringSubmatch(url)
 		} else if strings.HasPrefix(string(ctx.RequestURI()), "/instagram?") {
 			re := regexp.MustCompile((`(?:reel(?:s?)|p)/([A-Za-z0-9_-]+)`))
