@@ -27,7 +27,7 @@ func cacheMiddleware(next fasthttp.RequestHandler) fasthttp.RequestHandler {
 			re := regexp.MustCompile((`(?:reel(?:s?)|p)/([A-Za-z0-9_-]+)`))
 			matches = re.FindStringSubmatch(url)
 		} else if strings.HasPrefix(string(ctx.RequestURI()), "/tiktok?") {
-			re := regexp.MustCompile((`/(?:video|v)/(\d+)`))
+			re := regexp.MustCompile((`/(?:video|photo|v)/(\d+)`))
 			matches = re.FindStringSubmatch(utils.GetRedirectURL(url))
 		} else {
 			errorMessage := "URL Invalid"
