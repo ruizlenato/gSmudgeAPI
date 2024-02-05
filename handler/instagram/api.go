@@ -13,7 +13,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/tidwall/gjson"
 	"github.com/valyala/fasthttp"
 	"github.com/valyala/fasthttp/fasthttpproxy"
 )
@@ -120,34 +119,35 @@ func InstagramIndexer(ctx *fasthttp.RequestCtx) {
 	r := regexp.MustCompile(`\\\"gql_data\\\":([\s\S]*)\}\"\}`)
 	match := r.FindStringSubmatch(string(res))
 
+	var instagramData InstagramData
+
 	if len(match) == 2 {
 		rJson := utils.UnescapeJSON(match[1])
-		caption = gjson.Get(rJson, "shortcode_media.edge_media_to_caption.edges.0.node.text").String()
-		typename := gjson.Get(rJson, "shortcode_media.__typename").String()
-		if typename == "GraphSidecar" {
-			for _, results := range gjson.Get(rJson, "shortcode_media.edge_sidecar_to_children.edges").Array() {
-				is_video := results.Get("node.is_video").Bool()
-				display_resources := results.Get("node.display_resources.@reverse.0")
-				for _, results := range display_resources.Array() {
-					indexedMedia.Medias = append(indexedMedia.Medias, handler.Medias{
-						Height: int(results.Get("config_height").Int()),
-						Width:  int(results.Get("config_width").Int()),
-						Source: strings.ReplaceAll(results.Get("src").String(), `\/`, `/`),
-						Video:  is_video,
-					})
-				}
-			}
-		} else if typename == "GraphVideo" {
-			for _, results := range gjson.Get(rJson, "shortcode_media.dimensions").Array() {
-				indexedMedia.Medias = append(indexedMedia.Medias, handler.Medias{
-					Height: int(results.Get("height").Int()),
-					Width:  int(results.Get("width").Int()),
-					Source: strings.ReplaceAll(gjson.Get(rJson, "shortcode_media.video_url").String(), `\/`, `/`),
-					Video:  true,
-				})
-			}
+		err := json.Unmarshal([]byte(rJson), &instagramData)
+		if err != nil {
+			log.Println(err)
 		}
 
+		caption = instagramData.ShortcodeMedia.EdgeMediaToCaption.Edges[0].Node.Text
+		switch instagramData.ShortcodeMedia.Typename {
+		case "GraphSidecar":
+			for _, results := range instagramData.ShortcodeMedia.EdgeSidecarToChildren.Edges {
+				is_video := results.Node.IsVideo
+				indexedMedia.Medias = append(indexedMedia.Medias, handler.Medias{
+					Height: results.Node.DisplayResources[len(results.Node.DisplayResources)-1].ConfigHeight,
+					Width:  results.Node.DisplayResources[len(results.Node.DisplayResources)-1].ConfigWidth,
+					Source: strings.ReplaceAll(results.Node.DisplayResources[len(results.Node.DisplayResources)-1].Src, `\/`, `/`),
+					Video:  is_video,
+				})
+			}
+		case "GraphVideo":
+			indexedMedia.Medias = append(indexedMedia.Medias, handler.Medias{
+				Height: instagramData.ShortcodeMedia.Dimensions.Height,
+				Width:  instagramData.ShortcodeMedia.Dimensions.Width,
+				Source: strings.ReplaceAll(instagramData.ShortcodeMedia.VideoURL, `\/`, `/`),
+				Video:  true,
+			})
+		}
 	} else {
 		// Media
 		re := regexp.MustCompile(`class="Content(.*?)src="(.*?)"`)
@@ -172,18 +172,21 @@ func InstagramIndexer(ctx *fasthttp.RequestCtx) {
 	}
 
 	if indexedMedia.Medias == nil {
-		rjson := graphql(PostID, &handler.IndexedMedia{})
-		result := gjson.Get(rjson, "data.xdt_shortcode_media")
-		caption = result.Get("edge_media_to_caption.edges.0.node.text").String()
-		if strings.Contains(result.Get("__typename").String(), "Video") {
-			for _, results := range result.Get("dimensions").Array() {
-				indexedMedia.Medias = append(indexedMedia.Medias, handler.Medias{
-					Height: int(results.Get("height").Int()),
-					Width:  int(results.Get("width").Int()),
-					Source: strings.ReplaceAll(result.Get("video_url").String(), `\/`, `/`),
-					Video:  true,
-				})
-			}
+		rJson := graphql(PostID, &handler.IndexedMedia{})
+		err := json.Unmarshal([]byte(rJson), &instagramData)
+		if err != nil {
+			log.Println(err)
+		}
+		result := instagramData.XDTShortcodeMedia
+		caption = result.EdgeMediaToCaption.Edges[0].Node.Text
+		if strings.Contains(result.Typename, "Video") {
+			indexedMedia.Medias = append(indexedMedia.Medias, handler.Medias{
+				Height: result.Dimensions.Height,
+				Width:  result.Dimensions.Width,
+				Source: strings.ReplaceAll(result.VideoURL, `\/`, `/`),
+				Video:  true,
+			})
+
 		}
 	}
 
